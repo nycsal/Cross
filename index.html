@@ -1,28 +1,395 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Puzzle Quest: Crossword Adventure</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Touch Crossword Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      color: #333;
+      padding: 10px;
+      touch-action: manipulation;
+    }
+    #game-container {
+      max-width: 90vw;
+      text-align: center;
+      padding: 10px;
+    }
+    #clue-box {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      font-size: 1.1em;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 1s ease-in;
+    }
+    #grid {
+      display: grid;
+      gap: 2px;
+      background: #fff;
+      padding: 5px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      justify-content: center;
+    }
+    .cell {
+      width: 40px;
+      height: 40px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2em;
+      cursor: pointer;
+      transition: transform 0.2s, background 0.3s;
+    }
+    .cell.active {
+      background: #ffeb3b;
+      transform: scale(1.1);
+    }
+    .cell.filled {
+      background: #aaffaa;
+    }
+    #alphabet {
+      display: grid;
+      grid-template-columns: repeat(7, 40px);
+      gap: 5px;
+      margin-bottom: 15px;
+      justify-content: center;
+    }
+    .letter-btn {
+      width: 40px;
+      height: 40px;
+      background: #4ecdc4;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1.2em;
+      cursor: pointer;
+      transition: transform 0.2s, background 0.3s;
+    }
+    .letter-btn:hover, .letter-btn:active {
+      background: #45b7aa;
+      transform: scale(1.1);
+    }
+    #hint-btn {
+      width: 50px;
+      height: 50px;
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 1.5em;
+      cursor: pointer;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      transition: transform 0.2s;
+    }
+    #hint-btn:hover, #hint-btn:active {
+      transform: scale(1.2);
+    }
+    #level-display {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+      color: white;
+      text-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+    }
+    #next-level {
+      padding: 10px 20px;
+      background: #4ecdc4;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: transform 0.2s, background 0.3s;
+      display: none;
+    }
+    #next-level:hover, #next-level:active {
+      background: #45b7aa;
+      transform: scale(1.05);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes bounce {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    .correct {
+      animation: bounce 0.5s;
+      background: #aaffaa;
+    }
+  </style>
 </head>
 <body>
-    <div class="game-container">
-        <!-- Clue Section -->
-        <div class="clue-box pulse">
-            <span id="current-clue">Clue: </span>
-        </div>
+  <div id="game-container">
+    <div id="level-display">Level 1</div>
+    <div id="clue-box"></div>
+    <div id="grid"></div>
+    <div id="alphabet"></div>
+    <button id="hint-btn">?</button>
+    <button id="next-level">Next Level</button>
+  </div>
 
-        <!-- Crossword Grid -->
-        <div id="crossword-grid" class="grid-container"></div>
+  <script>
+    const levels = [
+      { words: ['CAT', 'DOG', 'RAT', 'HAT'], clue: 'Common Pets and Accessories' },
+      { words: ['BIRD', 'FISH', 'CAGE', 'BOWL', 'NEST'], clue: 'Pet-Related Terms' },
+      { words: ['HORSE', 'SNAKE', 'MOUSE', 'COLLAR', 'LEASH', 'TOY'], clue: 'Animals and Their Gear' },
+      { words: ['PUPPY', 'KITTEN', 'RABBIT', 'LITTER', 'WATER', 'FOOD', 'BED'], clue: 'Young Pets and Needs' },
+      { words: ['TURTLE', 'PARROT', 'HAMSTER', 'FEEDER', 'WHEEL', 'CLEAN', 'WALK'], clue: 'Exotic Pets and Care' },
+      { words: ['FROG', 'LIZARD', 'GUINEA', 'TANK', 'BARK', 'PURR', 'GROOM', 'PLAY'], clue: 'Pet Sounds and Upkeep' },
+      { words: ['SPIDER', 'FERRET', 'CHINCH', 'CAGE', 'BITE', 'CLAW', 'SHED', 'REST', 'HIDE'], clue: 'Unique Pets and Behaviors' },
+      { words: ['GOLDFISH', 'BUNNY', 'CANARY', 'AQUARIUM', 'HUTCH', 'SING', 'SWIM', 'CHEW', 'JUMP'], clue: 'Pet Homes and Actions' },
+      { words: ['IGUANA', 'GERBIL', 'TARANTULA', 'TERRARIUM', 'NIBBLE', 'CLIMB', 'SLEEP', 'EAT', 'DIG', 'HISS'], clue: 'Reptiles and Small Pet Traits' },
+      { words: ['CHAMELEON', 'HEDGEHOG', 'TORTOISE', 'VIVARIUM', 'SCRATCH', 'BURROW', 'CUDDLE', 'WASH', 'RUN', 'HOP', 'MEOW'], clue: 'Diverse Pets and Activities' }
+    ];
 
-        <!-- Controls -->
-        <div class="controls">
-            <button id="help-btn" class="icon-btn">?</button>
-            <div id="virtual-keyboard" class="keyboard"></div>
-        </div>
-    </div>
+    let currentLevel = 0;
+    let grid = [];
+    let wordPositions = [];
+    let selectedWord = null;
+    let selectedCellIndex = 0;
 
-    <script src="game.js"></script>
+    const gridEl = document.getElementById('grid');
+    const clueEl = document.getElementById('clue-box');
+    const levelEl = document.getElementById('level-display');
+    const alphabetEl = document.getElementById('alphabet');
+    const hintBtn = document.getElementById('hint-btn');
+    const nextBtn = document.getElementById('next-level');
+
+    function initLevel() {
+      grid = [];
+      wordPositions = [];
+      gridEl.innerHTML = '';
+      selectedWord = null;
+      selectedCellIndex = 0;
+      levelEl.textContent = `Level ${currentLevel + 1}`;
+      clueEl.textContent = levels[currentLevel].clue;
+      generateGrid();
+      placeWords();
+      renderGrid();
+      renderAlphabet();
+      nextBtn.style.display = 'none';
+    }
+
+    function generateGrid() {
+      for (let i = 0; i < 10; i++) {
+        grid[i] = Array(10).fill('');
+      }
+    }
+
+    function placeWords() {
+      const words = levels[currentLevel].words;
+      let row = 0, col = 0;
+      words.forEach((word, index) => {
+        let direction = index % 2 === 0 ? 'across' : 'down';
+        let pos = { word, direction, row, col, cells: [] };
+        let placed = false;
+
+        while (!placed) {
+          if (direction === 'across' && col + word.length <= 10) {
+            let canPlace = true;
+            for (let i = 0; i < word.length; i++) {
+              if (grid[row][col + i] && grid[row][col + i] !== word[i]) {
+                canPlace = false;
+                break;
+              }
+            }
+            if (canPlace) {
+              for (let i = 0; i < word.length; i++) {
+                grid[row][col + i] = word[i];
+                pos.cells.push({ row, col: col + i });
+              }
+              wordPositions.push(pos);
+              placed = true;
+              row += 2;
+              if (row >= 10) { row = 0; col += 2; }
+            } else {
+              col++;
+              if (col + word.length > 10) { col = 0; row++; }
+              if (row >= 10) break;
+            }
+          } else if (direction === 'down' && row + word.length <= 10) {
+            let canPlace = true;
+            for (let i = 0; i < word.length; i++) {
+              if (grid[row + i][col] && grid[row + i][col] !== word[i]) {
+                canPlace = false;
+                break;
+              }
+            }
+            if (canPlace) {
+              for (let i = 0; i < word.length; i++) {
+                grid[row + i][col] = word[i];
+                pos.cells.push({ row: row + i, col });
+              }
+              wordPositions.push(pos);
+              placed = true;
+              col += 2;
+              if (col >= 10) { col = 0; row += 2; }
+            } else {
+              row++;
+              if (row + word.length > 10) { row = 0; col++; }
+              if (col >= 10) break;
+            }
+          } else {
+            if (direction === 'across') {
+              col = 0;
+              row++;
+            } else {
+              row = 0;
+              col++;
+            }
+            if (row >= 10 || col >= 10) break;
+          }
+        }
+        if (word.length >= 5 && placed) {
+          let firstCell = pos.cells[0];
+          let cell = gridEl.children[firstCell.row * 10 + firstCell.col];
+          cell.textContent = word[0];
+          cell.classList.add('filled');
+        }
+      });
+    }
+
+    function renderGrid() {
+      gridEl.style.gridTemplateColumns = 'repeat(10, 40px)';
+      for (let i = 0; i < 10; i++) {
+        for (let j = 0; j < 10; j++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          if (grid[i][j]) {
+            cell.dataset.row = i;
+            cell.dataset.col = j;
+            cell.addEventListener('click', () => selectCell(i, j));
+          } else {
+            cell.style.background = '#ddd';
+          }
+          gridEl.appendChild(cell);
+        }
+      }
+    }
+
+    function renderAlphabet() {
+      alphabetEl.innerHTML = '';
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+      letters.forEach(letter => {
+        const btn = document.createElement('button');
+        btn.classList.add('letter-btn');
+        btn.textContent = letter;
+        btn.addEventListener('click', () => fillLetter(letter));
+        alphabetEl.appendChild(btn);
+      });
+    }
+
+    function selectCell(row, col) {
+      if (!grid[row][col]) return;
+      const cells = gridEl.children;
+      for (let cell of cells) {
+        cell.classList.remove('active');
+      }
+      wordPositions.forEach(word => {
+        word.cells.forEach(c => {
+          if (c.row === row && c.col === col) {
+            selectedWord = word;
+            selectedCellIndex = word.cells.findIndex(cell => cell.row === row && cell.col === col);
+            word.cells.forEach(cell => {
+              const el = cells[cell.row * 10 + cell.col];
+              el.classList.add('active');
+            });
+          }
+        });
+      });
+    }
+
+    function fillLetter(letter) {
+      if (!selectedWord) return;
+      const cells = gridEl.children;
+      const cell = selectedWord.cells[selectedCellIndex];
+      const el = cells[cell.row * 10 + cell.col];
+      if (!el.classList.contains('filled')) {
+        el.textContent = letter;
+        el.classList.add('filled');
+        selectedCellIndex++;
+        if (selectedCellIndex < selectedWord.cells.length) {
+          const nextCell = selectedWord.cells[selectedCellIndex];
+          selectCell(nextCell.row, nextCell.col);
+        }
+        checkWin();
+      }
+    }
+
+    function giveHint() {
+      if (!selectedWord) return;
+      const cells = gridEl.children;
+      let emptyIndex = selectedCellIndex;
+      while (emptyIndex < selectedWord.cells.length && cells[selectedWord.cells[emptyIndex].row * 10 + selectedWord.cells[emptyIndex].col].classList.contains('filled')) {
+        emptyIndex++;
+      }
+      if (emptyIndex < selectedWord.cells.length) {
+        const cell = selectedWord.cells[emptyIndex];
+        const el = cells[cell.row * 10 + cell.col];
+        el.textContent = selectedWord.word[emptyIndex];
+        el.classList.add('filled');
+        el.classList.add('correct');
+        selectedCellIndex = emptyIndex + 1;
+        if (selectedCellIndex < selectedWord.cells.length) {
+          const nextCell = selectedWord.cells[selectedCellIndex];
+          selectCell(nextCell.row, nextCell.col);
+        }
+        checkWin();
+      }
+    }
+
+    function checkWin() {
+      let allCorrect = true;
+      wordPositions.forEach(word => {
+        const cells = gridEl.children;
+        let wordCorrect = true;
+        for (let i = 0; i < word.cells.length; i++) {
+          const cell = word.cells[i];
+          const el = cells[cell.row * 10 + cell.col];
+          if (el.textContent !== word.word[i]) {
+            wordCorrect = false;
+            allCorrect = false;
+            break;
+          }
+        }
+        if (wordCorrect) {
+          word.cells.forEach(cell => {
+            const el = cells[cell.row * 10 + cell.col];
+            el.classList.add('correct');
+          });
+        }
+      });
+      if (allCorrect && currentLevel < levels.length - 1) {
+        nextBtn.style.display = 'block';
+      } else if (allCorrect) {
+        clueEl.textContent = 'Congratulations! You completed all levels!';
+        nextBtn.style.display = 'none';
+      }
+    }
+
+    hintBtn.addEventListener('click', giveHint);
+    nextBtn.addEventListener('click', () => {
+      currentLevel++;
+      initLevel();
+    });
+
+    initLevel();
+  </script>
 </body>
 </html>
