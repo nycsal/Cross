@@ -1,1 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Touch Crossword Game</title>
+  <style>
+    body { margin:0; font-family:sans-serif; background:#f0f8ff; overflow:hidden; }
+    #clue-box { position:relative; padding:10px; background:#336699; color:#fff; text-align:center; }
+    #grid { display:grid; gap:2px; background:#fff; margin:10px; touch-action:none; }
+    .cell { width:40px; height:40px; background:#ddeeff; text-align:center; vertical-align:middle;
+            line-height:40px; font-size:1.2em; user-select:none; }
+    .cell.active { border:2px solid #336699; background:#eef; }
+    #keypad { display:grid; grid-template-columns: repeat(7,1fr); gap:4px;
+              padding:10px; background:#336699; }
+    .key { background:#fff; padding:10px; font-size:1.2em; text-align:center; border-radius:4px;
+            user-select:none; }
+    .key:active { background:#ccc; }
+    #hint { position:absolute; bottom:10px; right:10px; padding:8px 12px;
+            background:#ffcc00; border-radius:4px; }
+    .fade-in { animation: fadeIn 0.5s; }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  </style>
+</head>
+<body>
 
+  <div id="clue-box"></div>
+  <div id="grid"></div>
+  <div id="keypad"></div>
+  <button id="hint">Hint 🌟</button>
+
+  <script>
+    const levels = [
+      { clue: "Planets", words: ["venus","earth","mars","uranus"] },
+      { clue: "Fruits & Veg", words: ["apple","berry","melon","okra","grape"] },
+      // ... add up to 10 levels
+    ];
+    let lvl=0, words, gridMap={}, selectedWord=null;
+
+    const gridEl = document.getElementById("grid");
+    const clueEl = document.getElementById("clue-box");
+    const keypadEl = document.getElementById("keypad");
+    const hintBtn = document.getElementById("hint");
+
+    function startLevel(n) {
+      lvl = n;
+      const L = levels[lvl];
+      words = L.words;
+      gridMap = {};
+      gridEl.innerHTML = '';
+      let cols = Math.max(...words.map(w=>w.length));
+      let rows = words.length;
+      gridEl.style.gridTemplateColumns = `repeat(${cols},40px)`;
+      clueEl.textContent = L.clue;
+      
+      words.forEach((w,i)=>{
+        for(let j=0;j<w.length;j++){
+          let cell = document.createElement('div');
+          cell.className = 'cell fade-in';
+          cell.dataset.word = i;
+          cell.dataset.pos = j;
+          gridEl.appendChild(cell);
+          gridMap[`${i}_${j}`] = cell;
+        }
+      });
+      
+      buildKeypad();
+      selectWord(0);
+    }
+
+    function buildKeypad() {
+      keypadEl.innerHTML = '';
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(ch=>{
+        let k = document.createElement('div');
+        k.textContent = ch;
+        k.className = 'key';
+        k.addEventListener('click', ()=> onKeyPress(ch));
+        keypadEl.appendChild(k);
+      });
+    }
+
+    function selectWord(i) {
+      if (selectedWord !== null)
+        Array.from(gridEl.querySelectorAll(`.cell[data-word='${selectedWord}']`)).forEach(c=>c.classList.remove('active'));
+      selectedWord = i;
+      Array.from(gridEl.querySelectorAll(`.cell[data-word='${i}']`)).forEach(c=>c.classList.add('active'));
+    }
+
+    function onKeyPress(ch) {
+      if (selectedWord === null) return;
+      const word = levels[lvl].words[selectedWord];
+      const cells = words[selectedWord].split('').map((_,j)=>gridMap[`${selectedWord}_${j}`]);
+      for (let j=0;j<cells.length;j++){
+        if (!cells[j].textContent) {
+          cells[j].textContent = ch.toLowerCase();
+          animateCell(cells[j]);
+          checkWord(selectedWord);
+          return;
+        }
+      }
+    }
+
+    function animateCell(cell){
+      cell.style.background = '#99ff99';
+      setTimeout(()=>cell.style.background='#ddeeff', 200);
+    }
+
+    function checkWord(idx){
+      const entered = words[idx].split('').map((_,j)=>gridMap[`${idx}_${j}`].textContent).join('');
+      if (entered === words[idx]) {
+        Array.from(gridEl.querySelectorAll(`.cell[data-word='${idx}']`)).forEach(c=>{
+          c.style.background='#aaffaa';
+        });
+        if (idx < words.length-1){
+          selectWord(idx+1);
+        } else {
+          if (lvl < levels.length-1) startLevel(lvl+1);
+          else alert("🎉 You completed all levels!");
+        }
+      }
+    }
+
+    hintBtn.addEventListener('click', ()=>{
+      if (selectedWord === null) return;
+      const w = levels[lvl].words[selectedWord];
+      const cells = words[selectedWord].split('').map((_,j)=>gridMap[`${selectedWord}_${j}`]);
+      for (let j=0;j<cells.length;j++){
+        if (!cells[j].textContent) {
+          cells[j].textContent = w[j];
+          animateCell(cells[j]);
+          break;
+        }
+      }
+    });
+
+    // Auto-fill first letter of each word initially
+    function initFirstLetters(){
+      words.forEach((w,i)=>{
+        const cell = gridMap[`${i}_0`];
+        cell.textContent = w[0];
+      });
+    }
+
+    startLevel(0);
+    setTimeout(initFirstLetters, 100);  // fill after grid appears
+  </script>
+</body>
+</html>
